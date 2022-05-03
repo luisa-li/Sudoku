@@ -9,8 +9,9 @@ public class SudokuPanel extends JPanel {
     private static final int DIMENSION = 9;
     private static final int UNIT = 30;
     private final JLabel[][] labelGrid = new JLabel[DIMENSION][DIMENSION];
+    private int numbersFound = 0;
 
-    private final Sudoku sudoku = new Sudoku("530070000600195000098000060800060003400803001700020006060000280000419005000080079");
+    private final Sudoku sudoku = new Sudoku("849003570010000000700090083000946700080050040006872000570010004000000010021700865");
 
 
     public SudokuPanel() {
@@ -21,17 +22,10 @@ public class SudokuPanel extends JPanel {
         // solve it
         while (!solved()) {
             solveSudoku(this.sudoku.getDecodedSudoku());
-            int solvedCells = 0;
-            // test that counts how many solved cell we have: are we making progress?
-            for (int i = 0; i < DIMENSION; i++) {
-                for (int y = 0; y < DIMENSION; y++) {
-                    if (this.sudoku.getDecodedSudoku()[i][y] <= 9 && this.sudoku.getDecodedSudoku()[i][y]!= 0) {
-                        solvedCells++;
-                    }
-                }
-            }
-            System.out.println(solvedCells);
         }
+
+        printSudoku();
+        refreshGraphics();
 
     }
 
@@ -96,10 +90,15 @@ public class SudokuPanel extends JPanel {
 
     }
 
-    private void solveSudoku(int[][] decodedSudoku) {
+    private boolean solveSudoku(int[][] decodedSudoku) {
+
+        printSudoku();
+        System.out.println();
+
+        System.out.println(checkProgress(decodedSudoku));
+        System.out.println();
 
         // progress keeps track of whether we have made progress in this new iteration of solveSudoku
-        boolean progress = false;
 
         // step 0
         // passing in sudoku as a variable since this method is most likely going to be recursive.
@@ -116,28 +115,78 @@ public class SudokuPanel extends JPanel {
                 if (decodedSudoku[i][y] == 0) {
                     // find all the possible ints in that spot and write it in that cell of decodedSudoku
                     decodedSudoku[i][y] = returnPossibilities(i, y, decodedSudoku);
-                } else if (this.sudoku.getDecodedSudoku()[i][y] > 9) {
+                } else if (decodedSudoku[i][y] > 9) {
                     // if the current cell has more than two digits, then find the possibilities again.
-                    decodedSudoku[i][y] = returnPossibilities(i, y, decodedSudoku);
-                }
-                if (decodedSudoku[i][y] < 10 && decodedSudoku[i][y] != 0) {
-                    // then we have made progress in finding new confirmed digits
-                    progress = true;
+                    int o = returnPossibilities(i, y, decodedSudoku);
+                    if (o==0) {
+                        System.out.println("NO POSSIBILITIES");
+                        return false;
+                    } else {
+                        decodedSudoku[i][y] = o;
+                    }
                 }
             }
         }
 
-        if (!progress) {
+        int found = checkProgress(decodedSudoku);
+        // if no progress was made this round,
 
-            // if no progress was made with the iterative algorithm, then switch to a recursive algorithm
+        if (found == this.numbersFound) {
 
-            // TODO Figure out how to make this happen
+            // if no progress has been made, then enter the recursive solution to Sudoku
+            System.out.println("ENTERING RECURSION");
+            // 1. find the square with the least possibilities
 
+            int p = 10;
+            int u = -1;
+            int v = -1;
+            for (int i = 0; i < DIMENSION; i++) {
+                for (int y = 0; y < DIMENSION; y++) {
+                    if (String.valueOf(decodedSudoku[i][y]).length() < p && String.valueOf(decodedSudoku[i][y]).length()!=1) {
+                        p = String.valueOf(decodedSudoku[i][y]).length();
+                        u = i;
+                        v = y;
+                    }
+                }
+            }
+
+            // 2. test the possible answers at that square
+
+            for (char s : String.valueOf(decodedSudoku[u][v]).toCharArray()) {
+
+                System.out.println("THE CHAR IS " + s);
+
+                decodedSudoku[u][v] = Character.getNumericValue(s);
+
+                // TODO We are not getting out of this recursive loop, and I don't know why
+
+                int[][] clone = decodedSudoku.clone();
+                if (solveSudoku(clone)) {
+                    return true;
+                } else {
+                    System.out.println("Did we get here");
+                }
+
+            }
+
+        } else {
+            this.numbersFound = found;
         }
 
-        printSudoku();
-        refreshGraphics();
+        return true;
 
+    }
+
+    private int checkProgress(int[][] decodedSudoku) {
+        int progress = 0;
+        for (int i = 0; i < DIMENSION; i++) {
+            for (int y = 0; y < DIMENSION; y++) {
+                if (decodedSudoku[i][y] != 0 && decodedSudoku[i][y] < 10) {
+                    progress++;
+                }
+            }
+        }
+        return progress;
     }
 
     private int returnPossibilities(int i, int y, int[][] decodedSudoku) {
@@ -189,8 +238,11 @@ public class SudokuPanel extends JPanel {
         for (int possibility : possibilities) {
             returnString = returnString.concat("" + possibility);
         }
-        return Integer.parseInt(returnString);
-
+        if (returnString.equals("")) {
+            return 0;
+        } else {
+            return Integer.parseInt(returnString);
+        }
     }
 
     public void refreshGraphics() {
